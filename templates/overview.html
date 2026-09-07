@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DataLyzer | Data Overview</title>
+
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='overview.css') }}">
+</head>
+
+<body>
+
+<div class="app-container">
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+    <div class="logo">DataLyzer</div>
+    <ul class="menu">
+        <li><a href="/">Home</a></li>
+        <li><a href="/overview.html">Data Overview</a></li>
+        <li><a href="/visua.html">Visualizations</a></li>
+        <li><a href="/help.html">Help</a></li>
+    </ul>
+</aside>
+
+<!-- ===== MAIN ===== -->
+<main class="main-content">
+
+<h1>Data Overview</h1>
+<p>Inspect dataset before visualization</p>
+
+<!-- ===== UPLOAD ===== -->
+<div class="upload-box">
+
+    <p>Upload CSV Dataset</p>
+    <input type="file" id="csvFile" accept=".csv">
+
+    <!-- STATUS -->
+    <div class="status-box" id="statusBox">
+        Upload a CSV file to begin analysis...
+    </div>
+
+</div>
+
+
+<!-- ===== DETAILS ===== -->
+<div class="grid">
+
+    <div class="info-card">
+        <h3>Columns</h3>
+        <ul id="columnList"></ul>
+    </div>
+
+    <div class="info-card">
+        <h3>Missing Values</h3>
+        <ul id="missingList"></ul>
+    </div>
+
+    <div class="info-card">
+        <h3>Duplicates</h3>
+        <p id="dupCount">0</p>
+    </div>
+
+    <div class="info-card">
+        <h3>Data Types</h3>
+        <ul id="dtypeList"></ul>
+    </div>
+
+</div>
+
+
+<!-- ===== TABLE PREVIEW ===== -->
+<div class="table-box">
+
+    <h3>Dataset Preview</h3>
+
+    <div id="tableContainer"></div>
+
+</div>
+
+
+<!-- ===== DOWNLOAD CLEAN ===== -->
+<button id="downloadCleanBtn" class="download-btn">
+    Download Cleaned Dataset
+</button>
+
+</main>
+</div>
+
+
+<!-- ================= JS ================= -->
+<script>
+
+let uploadedFilePath = null;
+
+
+/* ===== FILE UPLOAD ===== */
+document.getElementById("csvFile")
+.addEventListener("change", async e => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const status = document.getElementById("statusBox");
+
+    status.className = "status-box";
+    status.innerText = "Uploading file...";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            status.className = "status-box status-error";
+            status.innerText = data.error;
+            return;
+        }
+
+        uploadedFilePath = data.filepath;
+
+        status.className = "status-box status-success";
+        status.innerText = "✔ File uploaded successfully";
+
+        loadOverview(uploadedFilePath);
+
+    } catch {
+
+        status.className = "status-box status-error";
+        status.innerText = "Server not reachable";
+    }
+
+});
+
+
+/* ===== LOAD DATA OVERVIEW ===== */
+async function loadOverview(path) {
+
+    const status = document.getElementById("statusBox");
+
+    status.className = "status-box";
+    status.innerText = "Analyzing dataset...";
+
+    const res = await fetch("/api/overview", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({filepath: path})
+    });
+
+    const data = await res.json();
+
+    // ===== SHOW INFO =====
+    document.getElementById("columnList").innerHTML =
+        data.columns.map(c => `<li>${c}</li>`).join("");
+
+    document.getElementById("missingList").innerHTML =
+        Object.entries(data.missing)
+        .map(([k,v]) => `<li>${k}: ${v}</li>`)
+        .join("");
+
+    document.getElementById("dtypeList").innerHTML =
+        Object.entries(data.dtypes)
+        .map(([k,v]) => `<li>${k}: ${v}</li>`)
+        .join("");
+
+    document.getElementById("dupCount").innerText =
+        data.duplicates;
+
+
+    // ===== TABLE PREVIEW =====
+    if (data.preview.lenght > 0){
+        
+        const table = document.createElement("table");
+        const headers = Object.keys(data.preview[0] || {});
+
+        table.innerHTML =
+            "<tr>" + headers.map(h=>`<th>${h}</th>`).join("") + "</tr>" +
+            data.preview.map(r =>
+                "<tr>" +
+                headers.map(h=>`<td>${r[h]}</td>`).join("") +
+                "</tr>"
+            ).join("");
+
+        document.getElementById("tableContainer").innerHTML = "";
+        document.getElementById("tableContainer")
+            .appendChild(table);
+    } else {
+
+        documnet.getElementById("tablecontainer").innerHTML =
+            "<p>No preview avilable</p>";
+    }
+
+    // ===== STATUS SUMMARY =====
+    const totalMissing =
+        Object.values(data.missing)
+        .reduce((a,b)=>a+b,0);
+
+    if (totalMissing === 0 && data.duplicates === 0) {
+
+        status.className = "status-box status-success";
+        status.innerText =
+            "✔ Dataset loaded successfully — Preparing dataset overview...";
+
+    } else {
+
+        status.className = "status-box status-warning";
+        status.innerText =
+            `⚠ Issues detected: ${totalMissing} missing values, ` +
+            `${data.duplicates} duplicates`;
+    }
+}
+
+
+/* ===== DOWNLOAD CLEANED ===== */
+document.getElementById("downloadCleanBtn")
+.onclick = async () => {
+
+    const status = document.getElementById("statusBox");
+
+    if (!uploadedFilePath){
+        status.className = "status-box status-error";
+        status.innerText = "Please upload dataset first";
+        return;
+    }
+
+    status.className = "status-box";
+    status. innerText = "Cleaning dataset...";
+
+    try{
+        
+        const res = await fetch("/api/download-cleaned", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({filepath: uploadedFilePath})
+        });
+
+        const data = await res.json();
+
+        if (!data.file) {
+            status.className = "status-box status-error";
+            status.innerText ="Download failed";
+            return;
+        }
+
+        status.className = "status-box status-success";
+        status.innerText = "✔ Clean dataset ready — download started";
+
+        window.location.href = data.file;
+
+    } catch{
+
+        status.className = "staus-box status -error";
+        status. innerText = "erver error during cleaning";
+    }
+};
+
+</script>
+</body>
+</html>

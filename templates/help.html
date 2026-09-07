@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DataLyzer | Help</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='help.css') }}">
+    <link rel = "icon" href = "DataLyzer_Icon.png">
+    <link rel = "stylesheet" href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">DataLyzer</div>
+
+        <ul class="menu">
+            <li><a href ="home.html">Home</a></li>
+            <li><a href="overview.html">Overview</a></li>
+            <li><a href = "visua.html">Visualizations</a></li>
+            <li class="active">Help</li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <h1>Help & Support</h1>
+        <p class="subtitle">Find answers and learn how to use DataLyzer</p>
+
+        <!-- Help Sections -->
+        <div class="help-section">
+
+            <div class="help-card">
+                <h3>📂 Uploading Data</h3>
+                <p>
+                    Upload CSV files only. Make sure your file is not empty and
+                    contains proper column headers.
+                </p>
+            </div>
+
+            <div class="help-card">
+                <h3>📊 Creating Visualizations</h3>
+                <p>
+                    Select chart type, choose columns, and click
+                    <b>Generate Visualization</b> to view your data graphically.
+                </p>
+            </div>
+
+            <div class="help-card">
+                <h3>🧹 Data Cleaning</h3>
+                <p>
+                    DataLyzer automatically handles missing values,
+                    removes duplicates, and corrects data types.
+                </p>
+            </div>
+
+            <div class="help-card">
+                <h3>🔐 Privacy & Security</h3>
+                <p>
+                    Sensitive columns like names and emails are detected
+                    and masked automatically when privacy is enabled.
+                </p>
+            </div>
+
+            <div class="help-card">
+                <h3>🤖 NLP Insights</h3>
+                <p>
+                    Enable NLP in Settings to generate human-readable
+                    summaries of your analysis.
+                </p>
+            </div>
+
+            <div class="help-card">
+                <h3> Data Overview</h3>
+                <p>
+                    🎥Data Overview shows a quick summary of your dataset, including columns, missing values, duplicates, data types, and a preview of the data before analysis.
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Contact -->
+        <div class="contact-box">
+            <h3>Need More Help?</h3>
+            <p>Email us at <b>datalyzer.team@gmail.com</b></p>
+        </div>
+
+    </main>
+
+</div>
+<script>
+    document.querySelectorAll(".help-card").forEach(card => {
+    card.onclick = () => {
+        card.classList.toggle("open");
+    };
+});
+</script>
+</body>
+</html>
