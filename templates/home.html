@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DataLyzer</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+</head>
+
+<body>
+
+<div class="app-container">
+
+<!-- ================= SIDEBAR ================= -->
+<aside class="sidebar">
+    <div class="logo">DataLyzer</div>
+
+    <ul class="menu">
+        <li class="active">Home</li>
+        <li><a href="/overview.html">Overview</a></li>
+        <li><a href="/visua.html">Visualizations</a></li>
+        <li><a href="/help.html">Help</a></li>
+    </ul>
+</aside>
+
+
+<!-- ================= MAIN CONTENT ================= -->
+<main class="main-content">
+
+<h1>Upload. Analyze. Visualize.</h1>
+
+<!-- ================= TOP ROW ================= -->
+<div class="row">
+
+    <!-- LEFT -->
+    <div class="left">
+        <div class="upload-box">
+            <p>Drag your CSV file here</p>
+            <span>or click to upload</span>
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="info-box dataset-box">
+        <h3>Dataset Details</h3>
+        <div id="datasetDetails"></div>
+    </div>
+
+</div>
+
+
+<!-- ================= SECOND ROW ================= -->
+<div class="row">
+
+    <!-- LEFT -->
+    <div class="left">
+        <div class="options-box">
+
+            <h3>Options</h3>
+
+            <label>Choose summary Dataset</label>
+            <select id="analysisType">
+                <option value="mean">Mean</option>
+                <option value="mode">Mode</option>
+                <option value="comparison">Comparison</option>
+                <option value="minmax">Min-Max Value</option>
+                <option value="describe">Describe</option>
+            </select>
+
+            <label>Select Numeric Column</label>
+            <select id="numColumn"></select>
+
+            <label>Select Category Column</label>
+            <select id="catColumn"></select>
+
+            <button id="generateBtn">Generate</button>
+
+        </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="info-box analysis-box">
+        <h3>Analysis Report Here</h3>
+        <div id="analysisResult"></div>
+    </div>
+
+</div>
+
+</main>
+</div>
+
+
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+
+let uploadedFilePath = null;
+
+
+/* ================= FILE UPLOAD ================= */
+document.getElementById("csvFile").addEventListener("change", async (e) => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const datasetBox = document.getElementById("datasetDetails");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            datasetBox.innerHTML = `<p style="color:red">${data.error}</p>`;
+            return;
+        }
+
+        uploadedFilePath = data.filepath;
+
+        // ===== SHOW DATASET DETAILS =====
+        datasetBox.innerHTML = `
+            <b>${file.name}</b><br>
+            ${(file.size/1024).toFixed(2)} KB<br>
+            <span style="color:green;">✔ File uploaded successfully</span><br>
+            Rows: ${data.rows}<br>
+            Columns: ${data.columns.length}
+        `;
+
+        // ===== FILL DROPDOWNS =====
+        const numSelect = document.getElementById("numColumn");
+        const catSelect = document.getElementById("catColumn");
+
+        numSelect.innerHTML = "";
+        catSelect.innerHTML = "";
+
+        data.columns.forEach(col => {
+            numSelect.add(new Option(col, col));
+            catSelect.add(new Option(col, col));
+        });
+
+    } catch (err) {
+
+        datasetBox.innerHTML =
+            "<p style='color:red'>Upload failed — server not reachable</p>";
+    }
+});
+
+
+/* ================= GENERATE ANALYSIS ================= */
+document.getElementById("generateBtn").addEventListener("click", async () => {
+
+    const analysisBox = document.getElementById("analysisResult");
+
+    if (!uploadedFilePath) {
+        analysisBox.innerHTML =
+            "<p style='color:red'>Upload file first</p>";
+        return;
+    }
+
+    const analysisType = document.getElementById("analysisType").value;
+    const numCol = document.getElementById("numColumn").value;
+    const catCol = document.getElementById("catColumn").value;
+
+    if (analysisType === "comparison" && numCol === catCol) {
+        analysisBox.innerHTML =
+            "<p style='color:red'>Please select DIFFERENT columns for comparison</p>";
+        return;
+    }
+
+    try {
+
+        let payload = {
+            filepath: uploadedFilePath,
+            analysis_type: analysisType,
+            num_col: numCol
+        };
+
+        if (analysisType === "comparison") {
+            payload.cat_col = catCol;
+        }
+
+        const res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+
+        if (result.error) {
+            analysisBox.innerHTML =
+                `<p style="color:red">${result.error}</p>`;
+            return;
+        }
+
+        let html = "<b>Analysis Result</b><br><br>";
+
+        if (analysisType === "mean")
+            html += `<b>Mean:</b> ${Number(result.mean).toFixed(3)}`;
+
+        else if (analysisType === "mode")
+            html += `<b>Mode:</b> ${result.mode}`;
+
+        else if (analysisType === "minmax")
+            html += `<b>Max:</b> ${result.max}<br><b>Min:</b> ${result.min}`;
+
+        else if (analysisType === "comparison")
+            html += `
+                Top Category: ${result.top_category}<br>
+                Lowest Category: ${result.lowest_category}<br>
+                Difference: ${result.difference}
+            `;
+
+        else if (analysisType === "describe") {
+            for (let k in result)
+                html += `${k}: ${result[k]}<br>`;
+        }
+
+        analysisBox.innerHTML = html;
+
+    } catch (err) {
+
+        analysisBox.innerHTML =
+            "<p style='color:red'>Server error — check backend</p>";
+    }
+
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DataLyzer | Visualizations</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='visua.css')}}">
+<link rel="icon" href="DataLyzer_Icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+</head>
+
+<body>
+
+<div class="app-container">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="logo">DataLyzer</div>
+    <ul class="menu">
+        <li><a href="{{ url_for('home') }}">Home</a></li>
+        <li><a href="{{ url_for('overview') }}">Overview</a></li>
+        <li><a href="{{ url_for('visualizations') }}">Visualizations</a></li>
+        <li><a href="{{ url_for('help_page') }}">Help</a></li>
+    </ul>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+
+<!-- Header -->
+<div class="header">
+    <h1>Visualizations</h1>
+    <p>Select chart type and preview your data visually</p>
+</div>
+
+<!-- CSV Upload -->
+<div class="controls">
+    <div class="control-box">
+        <label>Upload CSV</label>
+        <input type="file" id="csvFile" accept=".csv">
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+
+    <div class="control-box">
+        <label>Chart Type</label>
+        <select id="chartType">
+            <option value="bar">Bar Chart</option>
+            <option value="line">Line Chart</option>
+            <option value="pie">Pie Chart</option>
+            <option value="hist">Histogram</option>
+            <option value="scatter">Scatter Plot</option>
+        </select>
+    </div>
+
+    <div class="control-box">
+        <label>X-Axis</label>
+        <select id="xAxis">
+            <option>Select Column</option>
+        </select>
+    </div>
+
+    <div class="control-box">
+        <label>Y-Axis</label>
+        <select id="yAxis">
+            <option>Select Column</option>
+        </select>
+    </div>
+
+    <div class="control-box">
+        <button id="generateChartBtn" class="generate-btn">
+            Generate Chart
+        </button>
+    </div>
+
+</div>
+
+<!-- Chart Preview -->
+<div class="chart-area" id="chartArea">
+    <p>📊 Chart Preview Area</p>
+    <span>Your visualization will appear here</span>
+</div>
+
+<!-- Human Readable Analysis -->
+<div class="nlp-box">
+    <h3>Human Readable Analysis</h3>
+    <p id="nlpOutput">Analysis will appear here...</p>
+</div>
+
+</main>
+</div>
+
+<script>
+
+let uploadedFilePath = null;
+
+/* ===== LOAD HUMAN ANALYSIS TEXT ===== */
+async function loadAnalysisText(filepath, x_col, y_col) {
+
+    document.getElementById("nlpOutput").innerText = "Generating analysis...";
+
+    try {
+
+        const response = await fetch("/api/analyze-text", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                filepath: filepath,
+                x_col: x_col,
+                y_col: y_col
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.text) {
+            document.getElementById("nlpOutput").innerText = data.text;
+        } else if (data.error) {
+            document.getElementById("nlpOutput").innerText = "Analysis error: " + data.error;
+        } else {
+            document.getElementById("nlpOutput").innerText = "Analysis unavailable.";
+        }
+
+    } catch {
+        document.getElementById("nlpOutput").innerText = "Analysis failed (server unreachable)";
+    }
+}
+/* ===== FILE UPLOAD ===== */
+document.getElementById("csvFile").addEventListener("change", async (e) => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+
+        const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (uploadData.error) {
+            alert(uploadData.error);
+            return;
+        }
+
+        uploadedFilePath = uploadData.filepath;
+
+        const xAxis = document.getElementById("xAxis");
+        const yAxis = document.getElementById("yAxis");
+
+        xAxis.innerHTML = "";
+        yAxis.innerHTML = "";
+
+        uploadData.columns.forEach(col => {
+            xAxis.add(new Option(col, col));
+            yAxis.add(new Option(col, col));
+        });
+
+        if (uploadData.columns.length > 1) {
+            yAxis.selectedIndex = 1;
+        }
+
+        alert("File uploaded successfully!");
+
+    } catch {
+        alert("Upload failed");
+    }
+
+});
+
+
+/* ===== GENERATE CHART ===== */
+document.getElementById("generateChartBtn").addEventListener("click", async () => {
+
+    if (!uploadedFilePath) {
+        alert("Upload file first");
+        return;
+    }
+
+    const chartType = document.getElementById("chartType").value;
+    const xCol = document.getElementById("xAxis").value;
+    const yCol = document.getElementById("yAxis").value;
+
+    try {
+
+        const res = await fetch("/api/chart", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                filepath: uploadedFilePath,
+                chart_type: chartType,
+                x_col: xCol,
+                y_col: yCol
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // ===== SHOW IMAGE =====
+        document.getElementById("chartArea").innerHTML = `
+            <img src="${data.chart_url}?t=${Date.now()}"
+                 style="max-width:100%; height:auto;">
+        `;
+
+        // ===== LOAD HUMAN ANALYSIS =====
+        loadAnalysisText(uploadedFilePath, xCol, yCol);
+
+    } catch {
+        alert("Chart generation failed");
+    }
+
+});
+
+</script>
+</body>
+</html>
