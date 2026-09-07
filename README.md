@@ -10,11 +10,6 @@ DataLyzer is a CSV Data Analysis and Visualization Web Application built using P
 - Duplicate Record Removal
 - Statistical Data Analysis
 - Data Visualization using Charts
-- Bar Charts
-- Line Charts
-- Pie Charts
-- Histograms
-- Scatter Plots
 - Automated Insight Generation
 - Data Export Functionality
 - User-Friendly Web Interface
@@ -28,6 +23,7 @@ DataLyzer is a CSV Data Analysis and Visualization Web Application built using P
 ### Frontend
 - HTML
 - CSS
+- JavaScript
 
 ### Data Processing
 - Pandas
@@ -57,10 +53,16 @@ DataLyzer/
 ## How to Run
 
 1. Clone the repository
-
-```bash
 git clone <repository-url>
 
 pip install -r requirements.txt
-
 python app.py
+
+## Author
+Pandit Bharti
+
+LinkedIn:
+https://www.linkedin.com/in/pandit-bharti
+
+GitHub:
+https://github.com/panditbharti-1710
